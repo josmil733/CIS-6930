@@ -40,6 +40,13 @@ const int TILE_DIM = 32;
 const int BLOCK_ROWS = 8;
 const int NUM_REPS = 100;
 
+  const int nx = 1024;
+  const int ny = 1024;
+  const int mem_size = nx*ny*sizeof(float);
+
+  dim3 dimGrid(nx/TILE_DIM, ny/TILE_DIM, 1);
+  dim3 dimBlock(TILE_DIM, BLOCK_ROWS, 1);
+
 // *****************
 // FUNCTION/KERNEL PROTOTYPES
 // *****************
@@ -100,18 +107,25 @@ __global__ void copy(float *odata, const float *idata)
     odata[(y+j)*width + x] = idata[(y+j)*width + x];
 }
 
-// Simplest transpose
-__global__ void transposeNaive(float *odata, const float *idata)
+*/
+
+/*
+
+// Improved transpose
+__global__ void imp_transpose(float *odata, const float *idata)
 {
   int x = blockIdx.x * TILE_DIM + threadIdx.x;
   int y = blockIdx.y * TILE_DIM + threadIdx.y;
   int width = gridDim.x * TILE_DIM;
 
-  for (int j = 0; j < TILE_DIM; j+= BLOCK_ROWS)
+  //for (int j = 0; j < nx*ny/(TILE_DIM*BLOCK_ROWS*; j+= BLOCK_ROWS)
+  for(int j = 0; j < TILE_WIDTH; j+= BLOCK_ROWS)
     odata[x*width + (y+j)] = idata[(y+j)*width + x];
 }
 
 */
+
+
 
 // *******************
 // MAIN
@@ -124,12 +138,16 @@ int main(int argc, char *argv[])
 // INITIALIZE AND PRINT BASIC VALUES
 // ********************
 
+/*
+
   const int nx = 1024;
   const int ny = 1024;
   const int mem_size = nx*ny*sizeof(float);
 
   dim3 dimGrid(nx/TILE_DIM, ny/TILE_DIM, 1);
   dim3 dimBlock(TILE_DIM, BLOCK_ROWS, 1);
+
+*/
 
   int devId;
   cudaCheck(cudaGetDevice(&devId));
@@ -226,6 +244,47 @@ int main(int argc, char *argv[])
   cudaCheck( cudaEventElapsedTime(&ms, startEvent, stopEvent) );
   cudaCheck( cudaMemcpy(h_tdata, d_tdata, mem_size, cudaMemcpyDeviceToHost) );
   postprocess(gold, h_tdata, nx * ny, ms);
+
+/*
+
+ // ----
+  // imp_copy 
+  // ----
+  printf("%25s", "imp_copy");
+  cudaCheck( cudaMemset(d_cdata, 0, mem_size) );
+  // warm up
+  imp_copy<<<dimGrid, dimBlock>>>(d_cdata, d_idata);
+  cudaCheck( cudaEventRecord(startEvent, 0) );
+  for (int i = 0; i < NUM_REPS; i++)
+     imp_copy<<<dimGrid, dimBlock>>>(d_cdata, d_idata);
+  cudaCheck( cudaEventRecord(stopEvent, 0) );
+  cudaCheck( cudaEventSynchronize(stopEvent) );
+  cudaCheck( cudaEventElapsedTime(&ms, startEvent, stopEvent) );
+  cudaCheck( cudaMemcpy(h_cdata, d_cdata, mem_size, cudaMemcpyDeviceToHost) );
+  postprocess(h_idata, h_cdata, nx*ny, ms);
+
+*/
+
+/*
+
+  // --------------
+  // imp_transpose
+  // --------------
+  printf("%25s", "imp_transpose");
+  cudaCheck( cudaMemset(d_tdata, 0, mem_size) );
+  // warmup
+  imp_transpose<<<dimGrid, dimBlock>>>(d_tdata, d_idata);
+  cudaCheck( cudaEventRecord(startEvent, 0) );
+  for (int i = 0; i < NUM_REPS; i++)
+     imp_transpose<<<dimGrid, dimBlock>>>(d_tdata, d_idata);
+  cudaCheck( cudaEventRecord(stopEvent, 0) );
+  cudaCheck( cudaEventSynchronize(stopEvent) );
+  cudaCheck( cudaEventElapsedTime(&ms, startEvent, stopEvent) );
+  cudaCheck( cudaMemcpy(h_tdata, d_tdata, mem_size, cudaMemcpyDeviceToHost) );
+  postprocess(gold, h_tdata, nx * ny, ms);
+
+*/
+
 
 /*
 
